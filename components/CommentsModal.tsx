@@ -1,10 +1,7 @@
 import { COLORS } from "@/constants/theme";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { styles } from "@/styles/feed.styles";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,30 +14,67 @@ import {
 } from "react-native";
 import { Loader } from "./Loader";
 import Comment from "./Comment";
+import { useAuth } from "@/providers/SupabaseProvider";
+import { CommentType } from "@/types/database.types";
+import { supabase } from "@/lib/supabase";
 
-type CommentsModal = {
-  postId: Id<"posts">;
+type CommentsModalProps = {
+  postId: number;
   visible: boolean;
   onClose: () => void;
 };
 
-export default function CommentsModal({ onClose, postId, visible }: CommentsModal) {
+export default function CommentsModal({ onClose, postId, visible }: CommentsModalProps) {
+  const { session } = useAuth();
   const [newComment, setNewComment] = useState("");
-  const comments = useQuery(api.comments.getComments, { postId });
-  const addComment = useMutation(api.comments.addComment);
+  const [comments, setComments] = useState<CommentType[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchComments = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.rpc("get_comments", { p_post_id: postId });
+    if (error) {
+      console.error("Error fetching comments:", error);
+    } else {
+      setComments(data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (visible) {
+      fetchComments();
+    }
+  }, [visible]);
 
   const handleAddComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !session) return;
 
     try {
-      await addComment({
+      // Optimistically update UI
+      const optimisticComment: CommentType = {
+        id: Math.random(),
+        post_id: postId,
+        user_id: session.user.id,
         content: newComment,
-        postId,
+        created_at: new Date().toISOString(),
+        author_username: session.user.user_metadata?.username || "You",
+        author_avatar_url: session.user.user_metadata?.avatar_url || "",
+      };
+      setComments([...comments, optimisticComment]);
+      setNewComment("");
+
+      await supabase.rpc("add_comment", {
+        p_post_id: postId,
+        p_user_id: session.user.id,
+        p_content: newComment.trim(),
       });
 
-      setNewComment("");
+      // Refresh comments from DB to get the real ID and timestamp
+      fetchComments();
     } catch (error) {
       console.log("Error adding comment:", error);
+      // TODO: Revert optimistic update on error
     }
   };
 
@@ -58,12 +92,12 @@ export default function CommentsModal({ onClose, postId, visible }: CommentsModa
           <View style={{ width: 24 }} />
         </View>
 
-        {comments === undefined ? (
+        {loading ? (
           <Loader />
         ) : (
           <FlatList
             data={comments}
-            keyExtractor={(item) => item._id}
+            keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => <Comment comment={item} />}
             contentContainerStyle={styles.commentsList}
           />

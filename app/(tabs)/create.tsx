@@ -1,6 +1,7 @@
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/create.styles";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@/providers/SupabaseProvider";
+import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -13,62 +14,73 @@ import {
   ActivityIndicator,
   ScrollView,
   TextInput,
+  Alert,
 } from "react-native";
-
 import { Image } from "expo-image";
-
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { decode } from "base64-js";
 
 export default function CreateScreen() {
   const router = useRouter();
-  const { user } = useUser();
+  const { session } = useAuth();
 
   const [caption, setCaption] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
 
+  // TODO: Fetch user profile from Supabase to get avatar
+  const user = { imageUrl: "https://randomuser.me/api/portraits/men/32.jpg" };
+
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
 
-    if (!result.canceled) setSelectedImage(result.assets[0].uri);
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
+    }
   };
 
-  const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
-  const createPost = useMutation(api.posts.createPost);
-
   const handleShare = async () => {
-    if (!selectedImage) return;
+    if (!selectedImage || !session) return;
+    setIsSharing(true);
 
     try {
-      setIsSharing(true);
-      const uploadUrl = await generateUploadUrl();
+      const base64 = await FileSystem.readAsStringAsync(selectedImage, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const filePath = `${session.user.id}/${new Date().getTime()}.jpg`;
+      const contentType = "image/jpeg";
 
-      const uploadResult = await FileSystem.uploadAsync(uploadUrl, selectedImage, {
-        httpMethod: "POST",
-        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        mimeType: "image/jpeg",
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("posts")
+        .upload(filePath, decode(base64), { contentType });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from("posts").getPublicUrl(filePath);
+
+      const imageUrl = urlData.publicUrl;
+
+      const { error: insertError } = await supabase.from("posts").insert({
+        user_id: session.user.id,
+        image_url: imageUrl,
+        caption: caption,
       });
 
-      if (uploadResult.status !== 200) throw new Error("Upload failed");
+      if (insertError) throw insertError;
 
-      const { storageId } = JSON.parse(uploadResult.body);
-      await createPost({ storageId, caption });
-
+      Alert.alert("Success", "Post shared successfully!");
       setSelectedImage(null);
       setCaption("");
-
       router.push("/(tabs)");
-    } catch (error) {
-      console.log("Error sharing post");
+    } catch (error: any) {
+      console.error("Error sharing post:", error);
+      Alert.alert("Error", "Failed to share post. " + error.message);
     } finally {
       setIsSharing(false);
     }
@@ -158,7 +170,7 @@ export default function CreateScreen() {
             <View style={styles.inputSection}>
               <View style={styles.captionContainer}>
                 <Image
-                  source={user?.imageUrl}
+                  source={{ uri: user?.imageUrl }}
                   style={styles.userAvatar}
                   contentFit="cover"
                   transition={200}

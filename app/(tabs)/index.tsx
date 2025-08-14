@@ -2,56 +2,80 @@ import { Loader } from "@/components/Loader";
 import Post from "@/components/Post";
 import StoriesSection from "@/components/Stories";
 import { COLORS } from "@/constants/theme";
-import { api } from "@/convex/_generated/api";
-import { useAuth } from "@clerk/clerk-expo";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/providers/SupabaseProvider";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "convex/react";
 import { FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
 import { styles } from "../../styles/feed.styles";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { PostType } from "@/types/database.types";
 
 export default function Index() {
-  const { signOut } = useAuth();
+  const { session } = useAuth();
+  const [posts, setPosts] = useState<PostType[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const posts = useQuery(api.posts.getFeedPosts);
+  const fetchPosts = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const { data, error } = await supabase.rpc("get_feed_posts", {
+        p_current_user_id: session.user.id,
+      });
 
-  if (posts === undefined) return <Loader />;
-  if (posts.length === 0) return <NoPostsFound />;
-
-  // this does nothing
-  const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
+      if (error) {
+        console.error("Error fetching posts:", error);
+      } else {
+        setPosts(data);
+      }
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+    } finally {
+      setLoading(false);
       setRefreshing(false);
-    }, 2000);
+    }
   };
+
+  useEffect(() => {
+    fetchPosts();
+  }, [session]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPosts();
+  };
+
+  if (loading) return <Loader />;
 
   return (
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>spotlight</Text>
-        <TouchableOpacity onPress={() => signOut()}>
+        <TouchableOpacity onPress={() => supabase.auth.signOut()}>
           <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={posts}
-        renderItem={({ item }) => <Post post={item} />}
-        keyExtractor={(item) => item._id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 60 }}
-        ListHeaderComponent={<StoriesSection />}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.primary}
-          />
-        }
-      />
+      {posts.length === 0 ? (
+        <NoPostsFound />
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={({ item }) => <Post post={item} />}
+          keyExtractor={(item) => item.id.toString()}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 60 }}
+          ListHeaderComponent={<StoriesSection />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
+            />
+          }
+        />
+      )}
     </View>
   );
 }

@@ -1,21 +1,17 @@
+import { supabase } from "@/lib/supabase";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/auth.styles";
-import { useSSO } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { View, Text, Image, TouchableOpacity } from "react-native";
 
 export default function login() {
-  const { startSSOFlow } = useSSO();
-  const router = useRouter();
-
   const handleGoogleSignIn = async () => {
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({ strategy: "oauth_google" });
-
-      if (setActive && createdSessionId) {
-        setActive({ session: createdSessionId });
-        router.replace("/(tabs)");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+      });
+      if (error) {
+        console.error("OAuth error:", error);
       }
     } catch (error) {
       console.error("OAuth error:", error);

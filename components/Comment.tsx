@@ -1,25 +1,18 @@
-import { View, Text, Image } from "react-native";
+import { View, Text } from "react-native";
 import { styles } from "@/styles/feed.styles";
 import { formatDistanceToNow } from "date-fns";
+import { Image } from "expo-image";
+import { CommentType } from "@/types/database.types";
 
-interface Comment {
-  content: string;
-  _creationTime: number;
-  user: {
-    fullname: string;
-    image: string;
-  };
-}
-
-export default function Comment({ comment }: { comment: Comment }) {
+export default function Comment({ comment }: { comment: CommentType }) {
   return (
     <View style={styles.commentContainer}>
-      <Image source={{ uri: comment.user.image }} style={styles.commentAvatar} />
+      <Image source={{ uri: comment.author_avatar_url }} style={styles.commentAvatar} />
       <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>{comment.user.fullname}</Text>
+        <Text style={styles.commentUsername}>{comment.author_username}</Text>
         <Text style={styles.commentText}>{comment.content}</Text>
         <Text style={styles.commentTime}>
-          {formatDistanceToNow(comment._creationTime, { addSuffix: true })}
+          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
         </Text>
       </View>
     </View>

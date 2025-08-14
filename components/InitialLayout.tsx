@@ -1,23 +1,23 @@
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@/providers/SupabaseProvider";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 
 export default function InitialLayout() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { session, loading } = useAuth();
 
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (loading) return;
 
     const inAuthScreen = segments[0] === "(auth)";
 
-    if (!isSignedIn && !inAuthScreen) router.replace("/(auth)/login");
-    else if (isSignedIn && inAuthScreen) router.replace("/(tabs)");
-  }, [isLoaded, isSignedIn, segments]);
+    if (!session && !inAuthScreen) router.replace("/(auth)/login");
+    else if (session && inAuthScreen) router.replace("/(tabs)");
+  }, [loading, session, segments]);
 
-  if (!isLoaded) return null;
+  if (loading) return null;
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
