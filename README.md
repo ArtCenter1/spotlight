@@ -3,7 +3,7 @@
 ![Demo App](/assets/images/screenshot-for-readme.png)
 
 Welcome to **Spotlight**!  
-In this one‑stop tutorial you’ll build a production‑ready **real‑time social network** that runs on **iOS, Android, and the web**—all with **React Native + Expo**, **Convex**, and **Clerk**.
+This is a production‑ready **real‑time social network** that runs on **iOS, Android, and the web**—all with **React Native + Expo** and **Supabase**.
 
 ---
 
@@ -20,7 +20,7 @@ This isn’t a UI demo—Spotlight is a **full‑stack, real‑time** social pla
 
 ## 🧑‍🍳 App Features Overview
 
-- 🔐 **Google Auth** via Clerk (seamless one‑tap login)
+- 🔐 **Google Auth** via Supabase (seamless one‑tap login)
 - 🏠 **Home Feed** with stories + posts, pull‑to‑refresh & logout
 - ❤️ **Like / Comment** with live updates for everyone
 - 📑 **Bookmarks Screen** to save and review posts
@@ -36,8 +36,8 @@ This isn’t a UI demo—Spotlight is a **full‑stack, real‑time** social pla
 ## 🧠 What You’ll Learn
 
 - 🏗️ Structure a cross‑platform app with **Expo Router**
-- ⚡ Wire up a **real‑time backend** using **Convex functions & database**
-- 🔑 Implement secure auth & session management with **Clerk**
+- ⚡ Wire up a **real‑time backend** using **Supabase database & functions**
+- 🔑 Implement secure auth & session management with **Supabase Auth**
 - 📱 Master core RN components: `View`, `Text`, `Image`, `FlatList`, `ScrollView`, `Pressable`, `KeyboardAvoidingView`, `Modal`, icons…
 - 🚀 Optimize performance (virtualization, lazy loading, memoization)
 - 🖼️ Handle device image selection & uploads
@@ -52,9 +52,8 @@ This isn’t a UI demo—Spotlight is a **full‑stack, real‑time** social pla
 Create a `.env` file in the project root:
 
 ```bash
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=<your_publishable_key>
-CONVEX_DEPLOYMENT=<your_deployment_name>
-EXPO_PUBLIC_CONVEX_URL=<your_convex_url>
+EXPO_PUBLIC_SUPABASE_URL=<your_supabase_url>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<your_supabase_anon_key>
 ```
 
 ## 📱 Run the App
